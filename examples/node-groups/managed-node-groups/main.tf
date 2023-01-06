@@ -35,7 +35,7 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name   = basename(path.cwd)
-  region = "us-west-2"
+  region = "us-east-1"
 
   cluster_version = "1.24"
 
@@ -95,87 +95,95 @@ module "eks_blueprints" {
 
   managed_node_groups = {
     # Managed Node groups with minimum config
-    mg5 = {
-      node_group_name = "mg5"
-      instance_types  = ["m5.large"]
-      min_size        = 2
-      create_iam_role = false # Changing `create_iam_role=false` to bring your own IAM Role
-      iam_role_arn    = aws_iam_role.managed_ng.arn
-      disk_size       = 100 # Disk size is used only with Managed Node Groups without Launch Templates
-      update_config = [{
-        max_unavailable_percentage = 30
-      }]
-    },
+    # mg5 = {
+    #   node_group_name = "mg5"
+    #   instance_types  = ["m5.large"]
+    #   min_size        = 2
+    #   create_iam_role = false # Changing `create_iam_role=false` to bring your own IAM Role
+    #   iam_role_arn    = aws_iam_role.managed_ng.arn
+    #   disk_size       = 100 # Disk size is used only with Managed Node Groups without Launch Templates
+    #   update_config = [{
+    #     max_unavailable_percentage = 30
+    #   }]
+    # },
     # Managed Node groups with Launch templates using AMI TYPE
-    mng_lt = {
-      # Node Group configuration
-      node_group_name = "mng_lt" # Max 40 characters for node group name
+    # mng_lt = {
+    #   # Node Group configuration
+    #   node_group_name = "mng_lt" # Max 40 characters for node group name
 
-      ami_type               = "AL2_x86_64"  # Available options -> AL2_x86_64, AL2_x86_64_GPU, AL2_ARM_64, CUSTOM
-      release_version        = ""            # Enter AMI release version to deploy the latest AMI released by AWS. Used only when you specify ami_type
-      capacity_type          = "ON_DEMAND"   # ON_DEMAND or SPOT
-      instance_types         = ["r5d.large"] # List of instances used only for SPOT type
-      format_mount_nvme_disk = true          # format and mount NVMe disks ; default to false
+    #   #ami_type               = "AL2_x86_64"  # Available options -> AL2_x86_64, AL2_x86_64_GPU, AL2_ARM_64, CUSTOM
+    #   #release_version        = ""            # Enter AMI release version to deploy the latest AMI released by AWS. Used only when you specify ami_type
+            
+    #   # custom_ami_id is optional when you provide ami_type. Enter the Custom AMI id if you want to use your own custom AMI
+    #   custom_ami_id  = data.aws_ami.amazonlinux2eks.id
+      
 
-      # Launch template configuration
-      create_launch_template = true              # false will use the default launch template
-      launch_template_os     = "amazonlinux2eks" # amazonlinux2eks or bottlerocket
+    #   capacity_type          = "ON_DEMAND"   # ON_DEMAND or SPOT
+    #   instance_types         = ["r5d.large"] # List of instances used only for SPOT type
+    #   format_mount_nvme_disk = true          # format and mount NVMe disks ; default to false
 
-      enable_monitoring = true
-      eni_delete        = true
-      public_ip         = false # Use this to enable public IP for EC2 instances; only for public subnets used in launch templates
+    #   # Launch template configuration
+    #   create_launch_template = true              # false will use the default launch template
+    #   launch_template_os     = "amazonlinux2eks" # amazonlinux2eks or bottlerocket
 
-      http_endpoint               = "enabled"
-      http_tokens                 = "optional"
-      http_put_response_hop_limit = 3
+    #   enable_monitoring = true
+    #   eni_delete        = true
+    #   public_ip         = false # Use this to enable public IP for EC2 instances; only for public subnets used in launch templates
 
-      # pre_userdata can be used in both cases where you provide custom_ami_id or ami_type
-      pre_userdata = <<-EOT
-        yum install -y amazon-ssm-agent
-        systemctl enable amazon-ssm-agent && systemctl start amazon-ssm-agent
-      EOT
+    #   http_endpoint               = "enabled"
+    #   http_tokens                 = "optional"
+    #   http_put_response_hop_limit = 3
 
-      # Taints can be applied through EKS API or through Bootstrap script using kubelet_extra_args
-      # e.g., k8s_taints = [{key= "spot", value="true", "effect"="NO_SCHEDULE"}]
-      k8s_taints = []
+    #   # pre_userdata can be used in both cases where you provide custom_ami_id or ami_type
+    #   pre_userdata = <<-EOT
+    #       useradd an3ible
+    #       mkdir /home/an3ible/.ssh
+    #   EOT
 
-      # Node Labels can be applied through EKS API or through Bootstrap script using kubelet_extra_args
-      k8s_labels = {
-        Environment = "preprod"
-        Zone        = "dev"
-        Runtime     = "docker"
-      }
+    #   # Taints can be applied through EKS API or through Bootstrap script using kubelet_extra_args
+    #   # e.g., k8s_taints = [{key= "spot", value="true", "effect"="NO_SCHEDULE"}]
+    #   k8s_taints = [{key= "stage", value="dedicated", "effect"="NO_SCHEDULE"}]
 
-      # Node Group scaling configuration
-      desired_size = 2
-      max_size     = 2
-      min_size     = 2
+    # # kubelet_extra_args used only when you pass custom_ami_id;
+    #   kubelet_extra_args =  "--kube-reserved cpu=200m,memory=0.3Gi,ephemeral-storage=1Gi --system-reserved memory=0.2Gi,ephemeral-storage=1Gi"
 
-      block_device_mappings = [
-        {
-          device_name = "/dev/xvda"
-          volume_type = "gp3"
-          volume_size = 100
-        }
-      ]
+    #   # Node Labels can be applied through EKS API or through Bootstrap script using kubelet_extra_args
+    #   k8s_labels = {
+    #     Environment = "preprod"
+    #     Zone        = "dev"
+    #     Runtime     = "docker"
+    #   }
 
-      # Node Group network configuration
-      subnet_type = "private" # public or private - Default uses the private subnets used in control plane if you don't pass the "subnet_ids"
-      subnet_ids  = []        # Defaults to private subnet-ids used by EKS Control plane. Define your private/public subnets list with comma separated subnet_ids  = ['subnet1','subnet2','subnet3']
+    #   # Node Group scaling configuration
+    #   desired_size = 1
+    #   max_size     = 2
+    #   min_size     = 1
 
-      additional_iam_policies = [] # Attach additional IAM policies to the IAM role attached to this worker group
+    #   block_device_mappings = [
+    #     {
+    #       device_name = "/dev/xvda"
+    #       volume_type = "gp3"
+    #       volume_size = 100
+    #     }
+    #   ]
 
-      # SSH ACCESS Optional - Recommended to use SSM Session manager
-      remote_access         = false
-      ec2_ssh_key           = ""
-      ssh_security_group_id = ""
+    #   # Node Group network configuration
+    #   subnet_type = "private" # public or private - Default uses the private subnets used in control plane if you don't pass the "subnet_ids"
+    #   subnet_ids  = []        # Defaults to private subnet-ids used by EKS Control plane. Define your private/public subnets list with comma separated subnet_ids  = ['subnet1','subnet2','subnet3']
 
-      additional_tags = {
-        ExtraTag    = "m5x-on-demand"
-        Name        = "m5x-on-demand"
-        subnet_type = "private"
-      }
-    }
+    #   additional_iam_policies = [] # Attach additional IAM policies to the IAM role attached to this worker group
+
+    #   # SSH ACCESS Optional - Recommended to use SSM Session manager
+    #   remote_access         = false
+    #   ec2_ssh_key           = ""
+    #   ssh_security_group_id = ""
+
+    #   additional_tags = {
+    #     ExtraTag    = "m5x-on-demand"
+    #     Name        = "m5x-on-demand"
+    #     subnet_type = "private"
+    #   }
+    # }
     # Managed Node groups with Launch templates using CUSTOM AMI with ContainerD runtime
     mng_custom_ami = {
       # Node Group configuration
@@ -205,7 +213,7 @@ module "eks_blueprints" {
       # --node-labels is used to apply Kubernetes Labels to Nodes
       # --register-with-taints used to apply taints to Nodes
       # e.g., kubelet_extra_args='--node-labels=WorkerType=SPOT,noderole=spark --register-with-taints=spot=true:NoSchedule --max-pods=58',
-      kubelet_extra_args = "--node-labels=WorkerType=SPOT,noderole=spark --register-with-taints=test=true:NoSchedule --max-pods=20"
+      kubelet_extra_args =  "--kube-reserved cpu=200m,memory=0.3Gi,ephemeral-storage=1Gi --system-reserved memory=0.2Gi,ephemeral-storage=1Gi"
 
       # bootstrap_extra_args used only when you pass custom_ami_id. Allows you to change the Container Runtime for Nodes
       # e.g., bootstrap_extra_args="--use-max-pods false --container-runtime containerd"
@@ -256,47 +264,47 @@ module "eks_blueprints" {
       }
     }
     # Managed Node group with Launch templates using AMI TYPE and SPOT instances of 2 vCPUs and 8 Gib Memory
-    spot_2vcpu_8mem = {
-      node_group_name = "mng-spot-2vcpu-8mem"
-      capacity_type   = "SPOT"
-      instance_types  = ["m5.large", "m4.large", "m6a.large", "m5a.large", "m5d.large"]
-      max_size        = 2
-      desired_size    = 1
-      min_size        = 1
+    # spot_2vcpu_8mem = {
+    #   node_group_name = "mng-spot-2vcpu-8mem"
+    #   capacity_type   = "SPOT"
+    #   instance_types  = ["m5.large", "m4.large", "m6a.large", "m5a.large", "m5d.large"]
+    #   max_size        = 2
+    #   desired_size    = 1
+    #   min_size        = 1
 
-      # Node Group network configuration
-      subnet_type = "private" # public or private - Default uses the private subnets used in control plane if you don't pass the "subnet_ids"
-      subnet_ids  = []        # Defaults to private subnet-ids used by EKS Control plane. Define your private/public subnets list with comma separated subnet_ids  = ['subnet1','subnet2','subnet3']
+    #   # Node Group network configuration
+    #   subnet_type = "private" # public or private - Default uses the private subnets used in control plane if you don't pass the "subnet_ids"
+    #   subnet_ids  = []        # Defaults to private subnet-ids used by EKS Control plane. Define your private/public subnets list with comma separated subnet_ids  = ['subnet1','subnet2','subnet3']
 
-      k8s_taints = [{ key = "spotInstance", value = "true", effect = "NO_SCHEDULE" }]
-    }
+    #   k8s_taints = [{ key = "spotInstance", value = "true", effect = "NO_SCHEDULE" }]
+    # }
 
-    # Managed Node group with Launch templates using AMI TYPE and SPOT instances of 4 vCPUs and 16 Gib Memory
-    spot_4vcpu_16mem = {
-      node_group_name = "mng-spot-4vcpu-16mem"
-      capacity_type   = "SPOT"
-      instance_types  = ["m5.xlarge", "m4.xlarge", "m6a.xlarge", "m5a.xlarge", "m5d.xlarge"]
+    # # Managed Node group with Launch templates using AMI TYPE and SPOT instances of 4 vCPUs and 16 Gib Memory
+    # spot_4vcpu_16mem = {
+    #   node_group_name = "mng-spot-4vcpu-16mem"
+    #   capacity_type   = "SPOT"
+    #   instance_types  = ["m5.xlarge", "m4.xlarge", "m6a.xlarge", "m5a.xlarge", "m5d.xlarge"]
 
-      # Node Group network configuration
-      subnet_type = "private" # public or private - Default uses the private subnets used in control plane if you don't pass the "subnet_ids"
-      subnet_ids  = []        # Defaults to private subnet-ids used by EKS Control plane. Define your private/public subnets list with comma separated subnet_ids  = ['subnet1','subnet2','subnet3']
+    #   # Node Group network configuration
+    #   subnet_type = "private" # public or private - Default uses the private subnets used in control plane if you don't pass the "subnet_ids"
+    #   subnet_ids  = []        # Defaults to private subnet-ids used by EKS Control plane. Define your private/public subnets list with comma separated subnet_ids  = ['subnet1','subnet2','subnet3']
 
-      k8s_taints = [{ key = "spotInstance", value = "true", effect = "NO_SCHEDULE" }]
+    #   k8s_taints = [{ key = "spotInstance", value = "true", effect = "NO_SCHEDULE" }]
 
-      # NOTE: If we want the node group to scale-down to zero nodes,
-      # we need to use a custom launch template and define some additional tags for the ASGs
-      min_size = 0
+    #   # NOTE: If we want the node group to scale-down to zero nodes,
+    #   # we need to use a custom launch template and define some additional tags for the ASGs
+    #   min_size = 0
 
-      # Launch template configuration
-      create_launch_template = true              # false will use the default launch template
-      launch_template_os     = "amazonlinux2eks" # amazonlinux2eks or bottlerocket
+    #   # Launch template configuration
+    #   create_launch_template = true              # false will use the default launch template
+    #   launch_template_os     = "amazonlinux2eks" # amazonlinux2eks or bottlerocket
 
-      # This is so cluster autoscaler can identify which node (using ASGs tags) to scale-down to zero nodes
-      additional_tags = {
-        "k8s.io/cluster-autoscaler/node-template/label/eks.amazonaws.com/capacityType" = "SPOT"
-        "k8s.io/cluster-autoscaler/node-template/label/eks/node_group_name"            = "mng-spot-2vcpu-8mem"
-      }
-    }
+    #   # This is so cluster autoscaler can identify which node (using ASGs tags) to scale-down to zero nodes
+    #   additional_tags = {
+    #     "k8s.io/cluster-autoscaler/node-template/label/eks.amazonaws.com/capacityType" = "SPOT"
+    #     "k8s.io/cluster-autoscaler/node-template/label/eks/node_group_name"            = "mng-spot-2vcpu-8mem"
+    #   }
+    # }
   }
 
   tags = local.tags
