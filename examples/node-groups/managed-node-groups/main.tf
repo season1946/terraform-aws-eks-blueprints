@@ -317,9 +317,23 @@ module "eks_blueprints_kubernetes_addons" {
   eks_cluster_endpoint = module.eks_blueprints.eks_cluster_endpoint
   eks_oidc_provider    = module.eks_blueprints.oidc_provider
   eks_cluster_version  = module.eks_blueprints.eks_cluster_version
-
+  enable_argocd           = true
   enable_metrics_server     = true
   enable_cluster_autoscaler = true
+  enable_aws_load_balancer_controller = true
+  enable_cert_manager = true
+
+  enable_ingress_nginx                = true
+  # Add-on customizations
+  ingress_nginx_helm_config = {
+    values = [templatefile("${path.module}/loadbalancer/nginx-values.yaml", {
+      hostname     = null
+      ssl_cert_arn = null
+    })]
+  }
+  
+  
+  
   cluster_autoscaler_helm_config = {
     set = [
       {
