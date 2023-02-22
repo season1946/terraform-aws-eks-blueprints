@@ -1,7 +1,7 @@
-variable "name" {
-  description = "Name of the VPC and EKS Cluster"
-  default     = "emr-on-eks"
+variable "eks_cluster_id" {
+  description = "EKS Cluster ID/name"
   type        = string
+  default     = "managed-airflow-mwaa"
 }
 
 variable "region" {
@@ -10,20 +10,14 @@ variable "region" {
   default     = "us-west-2"
 }
 
-variable "eks_cluster_version" {
-  description = "EKS Cluster version"
-  default     = "1.24"
-  type        = string
-}
-
 variable "tags" {
   description = "Default tags"
   default     = {}
   type        = map(string)
 }
 
-variable "vpc_cidr" {
-  description = "VPC CIDR"
-  default     = "10.1.0.0/16"
+variable "iam_role_permissions_boundary" {
+  description = "ARN of the policy that is used to set the permissions boundary for the IAM role"
   type        = string
+  default     = null
 }
