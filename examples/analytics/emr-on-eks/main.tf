@@ -2,6 +2,13 @@ provider "aws" {
   region = local.region
 }
 
+# ECR always authenticates with `us-east-1` region
+# Docs -> https://docs.aws.amazon.com/AmazonECR/latest/public/public-registries.html
+provider "aws" {
+  alias  = "ecr"
+  region = "us-east-1"
+}
+
 provider "kubernetes" {
   host                   = data.aws_eks_cluster.cluster.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
@@ -16,6 +23,15 @@ provider "helm" {
   }
 }
 
+provider "kubectl" {
+  apply_retry_count      = 10
+  host                   = data.aws_eks_cluster.cluster.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
+  load_config_file       = false
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+
 data "aws_eks_cluster_auth" "this" {
   name = var.eks_cluster_id
 }
@@ -28,10 +44,14 @@ data "aws_availability_zones" "available" {}
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
+data "aws_ecrpublic_authorization_token" "token" {
+  provider = aws.ecr
+}
 
 locals {
 
   region = var.region
+  core_node_group = "core-node-group"
   
   emr_on_eks_teams = {
     emr-data-team-a = {
@@ -104,6 +124,32 @@ module "eks_blueprints_kubernetes_addons" {
       operating_system = "linux"
     })]
   }
+  
+    #---------------------------------------
+  # Karpenter
+  #---------------------------------------
+  enable_karpenter = true
+  karpenter_helm_config = {
+    repository_username = data.aws_ecrpublic_authorization_token.token.user_name
+    repository_password = data.aws_ecrpublic_authorization_token.token.password
+  }
+
+  #---------------------------------------
+  # Kubecost
+  #---------------------------------------
+  enable_kubecost = true
+  kubecost_helm_config = {
+    name                = "kubecost"                      # (Required) Release name.
+    repository          = "oci://public.ecr.aws/kubecost" # (Optional) Repository URL where to locate the requested chart.
+    chart               = "cost-analyzer"                 # (Required) Chart name to be installed.
+    version             = "1.97.0"                        # (Optional) Specify the exact chart version to install. If this is not specified, it defaults to the version set within default_helm_config: https://github.com/aws-ia/terraform-aws-eks-blueprints/blob/main/modules/kubernetes-addons/kubecost/locals.tf
+    namespace           = "kubecost"                      # (Optional) The namespace to install the release into.
+    repository_username = data.aws_ecrpublic_authorization_token.token.user_name
+    repository_password = data.aws_ecrpublic_authorization_token.token.password
+    timeout             = "300"
+    values              = [templatefile("${path.module}/helm-values/kubecost-values.yaml", {})]
+  }
+
 
   #---------------------------------------
   # Amazon Managed Prometheus
@@ -235,3 +281,34 @@ module "emr_on_eks" {
   tags                          = var.tags
 
 }
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Karpenter provisioners setup
+# ---------------------------------------------------------------------------------------------------------------------
+
+# NOTE: instance_profile is hardcoded to avoid the following error from Terraform
+#╷
+#│ Error: Invalid for_each argument
+#│
+#│   on addons.tf line 202, in resource "kubectl_manifest" "karpenter_provisioner":
+#│  202:   for_each  = toset(data.kubectl_path_documents.karpenter_provisioners.documents)
+#│     ├────────────────
+#│     │ data.kubectl_path_documents.karpenter_provisioners.documents is a list of string, known only after apply
+# launch_template_ needs to be created in eks ahead
+data "kubectl_path_documents" "karpenter_provisioners" {
+  pattern = "${path.module}/provisioners/spark-*.yaml"
+  vars = {
+    azs                  = local.region
+    eks_cluster_id       = var.eks_cluster_id
+    instance_profile     = format("%s-%s", var.eks_cluster_id, local.core_node_group) # This is using core-node-group instance profile
+    launch_template_name = format("%s-%s", "karpenter", var.eks_cluster_id)
+  }
+}
+
+# resource "kubectl_manifest" "karpenter_provisioner" {
+#   for_each  = toset(data.kubectl_path_documents.karpenter_provisioners.documents)
+#   yaml_body = each.value
+
+#   depends_on = [module.eks_blueprints_kubernetes_addons]
+# }

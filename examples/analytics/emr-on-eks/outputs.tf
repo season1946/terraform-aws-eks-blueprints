@@ -9,7 +9,8 @@ output "emrcontainers_virtual_cluster_id" {
 #   value       = module.emr_on_eks.emr_on_eks_role_id
 # }
 
-# output "emr_on_eks_role_arn" {
-#   description = "IAM execution role arn for EMR on EKS"
-#   value       = module.emr_on_eks.emr_on_eks_role_arn
-# }
+output "emr_on_eks_role_arn" {
+  description = "IAM execution role arn for EMR on EKS"
+  value       = values({ for nodes in sort(keys(local.emr_on_eks_teams)) : nodes => join(",", module.emr_on_eks[nodes].emr_on_eks_role_arn) })
+   
+}

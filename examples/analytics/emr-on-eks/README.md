@@ -12,3 +12,6 @@
         "sparkSubmitParameters": "--conf spark.executor.instances=2 --conf spark.executor.memory=2G --conf spark.executor.cores=2 --conf spark.driver.cores=1"
       }
     }'
+    
+    
+Karpenter provisioners component is commented out for now because of the error
