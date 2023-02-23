@@ -34,10 +34,10 @@ EMR_EKS_RELEASE_LABEL='emr-6.5.0-latest'
 EMR_VIRTUAL_CLUSTER_NAME=$(aws emr-containers list-virtual-clusters --query "virtualClusters[?id=='${EMR_EMR_VIRTUAL_CLUSTER_ID}' && state=='RUNNING'].name" --output text)
 
 # Execute Spark job
-if [[ $EMR_VIRTUAL_CLUSTER_ID != "" ]]; then
+
   echo "Found Cluster $EMR_VIRTUAL_CLUSTER_NAME; Executing the Spark job now..."
   aws emr-containers start-job-run \
-    --virtual-cluster-id $EMR_VIRTUAL_CLUSTER_ID \
+    --virtual-cluster-id ${EMR_EMR_VIRTUAL_CLUSTER_ID} \
     --name $JOB_NAME \
     --execution-role-arn $EMR_JOB_EXECUTION_ROLE_ARN \
     --release-label $EMR_EKS_RELEASE_LABEL \
@@ -48,6 +48,5 @@ if [[ $EMR_VIRTUAL_CLUSTER_ID != "" ]]; then
       }
     }'
 
-else
-  echo "Cluster is not in running state $EMR_VIRTUAL_CLUSTER_NAME"
-fi
+
+
